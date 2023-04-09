@@ -45,7 +45,6 @@ QMP6988 qmp6988;
 float qmp_Pressure = 0.0;
 float sht30_Temperature = 0.0;
 float sht30_Humidity = 0.0;
-int n_average = 1;
 
 // WIFI and https client librarys:
 #include "WiFi.h"
@@ -76,16 +75,40 @@ int html_get_request;
 void I2Cscan();
 boolean connect_Wifi();
 
+int lcd_millis = 0; // Seconds the screen has been active;
+bool isLcdOn = true;
+
+void setLcdOn()
+{
+  lcd_millis = millis() + 5000;
+
+  if(isLcdOn)
+    return;
+  
+  USBSerial.println("LCD On");
+
+  isLcdOn = true;
+}
+
+void setLcdOff()
+{
+  if(!isLcdOn)
+    return;
+  
+  USBSerial.println("LCD Off");
+
+  M5.Lcd.clear();
+  isLcdOn = false;
+}
+
 void setup() {
   // start the ATOM device with Serial and Display (one LED)
-  // begin(SerialEnable, I2CEnable, DisplayEnable)
-  M5.begin(true, true, true);
+  // begin(Lcd, SerialEnable, I2CEnable, LedEnable)
+  M5.begin(true, true, false, false);
 
   // Set font
   M5.lcd.setTextSize(2);
-  //M5.lcd.fillRect(0, 0, 128, 43, RED);
-  //M5.lcd.fillRect(0, 0, 128, 43*2, YELLOW);
-  //M5.lcd.fillRect(0, 0, 128, 43*3, BLUE);
+  setLcdOn();
   font_height = M5.lcd.fontHeight();
 
   // Wire.begin() must be called after M5.begin()
@@ -124,6 +147,9 @@ void setup() {
 int32_t lineHeight = 43;
 void writeTemperature(float value)
 {
+  if(!isLcdOn)
+    return;
+
   M5.lcd.fillRect(0, 0, 128, lineHeight, RED);
   M5.lcd.setTextColor(BLACK, RED);
   M5.lcd.setCursor(4, 12);
@@ -132,6 +158,9 @@ void writeTemperature(float value)
 
 void writeHumidity(float value)
 {
+  if(!isLcdOn)
+    return;
+
   M5.lcd.fillRect(0, lineHeight, 128, lineHeight, YELLOW);
   M5.lcd.setTextColor(BLACK, YELLOW);
   M5.lcd.setCursor(4, lineHeight+12);
@@ -140,6 +169,9 @@ void writeHumidity(float value)
 
 void writePressure(float value)
 {
+  if(!isLcdOn)
+    return;
+
   M5.lcd.fillRect(0, lineHeight*2, 128, lineHeight, BLUE);
   M5.lcd.setTextColor(BLACK, BLUE);
   M5.lcd.setCursor(4, lineHeight*2+12);
@@ -149,6 +181,20 @@ void writePressure(float value)
 void loop() {
   // get actual time in miliseconds
   unsigned long current_millis = millis();
+  
+  M5.Btn.read();
+  if(M5.Btn.wasPressed())
+  {
+    setLcdOn();
+    writeTemperature(sht30_Temperature);
+    writeHumidity(sht30_Humidity);
+    writePressure(qmp_Pressure);
+  }
+  else if(current_millis > lcd_millis)
+  {
+    setLcdOff();
+  }
+  
   // check if next measure interval is reached
   if(current_millis > next_millis){
     Serial.println("Measure");
@@ -168,7 +214,8 @@ void loop() {
     writeTemperature(sht30_Temperature);
     writeHumidity(sht30_Humidity);
     writePressure(qmp_Pressure);
-  }
+  }  
+
   // check if WIFI is still connected
   // if the WIFI is not connected (anymore)
   // a reconnect is triggert
