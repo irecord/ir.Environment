@@ -84,7 +84,6 @@ void setup() {
     esp_restart();
   }
   
-  sensor_millis = millis();
   setLcdOn();
 }
 
@@ -120,6 +119,7 @@ void loop()
       esp_restart();
   }
   
+  // Update EmonPi
   if(current_millis > emon_millis && latestPressure > 0)
   {
     emon_millis = current_millis + emon_seconds*1000;
@@ -134,7 +134,7 @@ bool connectWifi()
   WiFi.setHostname(WifiHostName);
   WiFi.mode(WIFI_STA);
   WiFi.begin(WifiSSID, WifiPassword);
-  delay(1000);
+  delay(1000); // Needed to allow the Wifi to connect
 
   wl_status_t status = WiFi.status();
   if(status == WL_CONNECTED)
@@ -154,7 +154,7 @@ bool initSensors()
 { 
   // Start the sensor comms
   Wire.end();
-  Wire.begin(2, 1); 
+  Wire.begin(2, 1); // Grove connector
   delay(50);
 
   if(qmp6988.init() == 1)
@@ -171,6 +171,9 @@ bool initSensors()
   return false;
 }
 
+///
+/// Sends a POST to the EmonPi with the JSON values in the querystring
+///
 void sendDataToEmon()
 {
   char url[255];
@@ -190,7 +193,7 @@ void sendDataToEmon()
     USBSerial.println(httpResponseCode);
     USBSerial.println(":-(");
   }
-  //httpClient.end();
+  //httpClient.end(); // Gives an error on flush(), seems to not be needed.
 }
 
 ///
@@ -235,7 +238,11 @@ void writePressure()
 //
 #define GC9107_SLPIN 0x10
 #define GC9107_SLPOUT 0x11
+#define BACKLIGHT_PIN 16
 
+///
+/// Sets the Backlight on, the LCD out of sleep, and starts updating the Sensor Values
+///
 void setLcdOn()
 {
   lcd_millis = current_millis + 1000*lcd_seconds;
@@ -248,11 +255,14 @@ void setLcdOn()
   M5.Lcd.startWrite();
   M5.Lcd.writecommand(GC9107_SLPOUT);
   M5.Lcd.endWrite();
-  digitalWrite(16, HIGH);
+  digitalWrite(BACKLIGHT_PIN, HIGH);
 
   writeSensorsToLcd();
 }
 
+///
+/// Sets the Backlight off, the LCD to sleep, and stops updating the Sensor Values
+///
 void setLcdOff()
 {
   if(!isLcdOn)
@@ -261,7 +271,7 @@ void setLcdOff()
   M5.Lcd.startWrite();
   M5.Lcd.writecommand(GC9107_SLPIN);
   M5.Lcd.endWrite();
-  digitalWrite(16, LOW);
+  digitalWrite(BACKLIGHT_PIN, LOW);
 
   isLcdOn = false;
 }
