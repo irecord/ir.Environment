@@ -11,10 +11,13 @@
  * https://github.com/electricidea/M5ATOM/tree/master/ATOM-Web-Monitor
  * https://community.m5stack.com/topic/2564/atom-lite-and-env-ii
  * https://community.m5stack.com/topic/4900/issue-with-env-iii-hat
+ * https://community.home-assistant.io/t/got-the-lilygo-t-qt-esp32-s3-display-working/537328
+ * https://admin.osptek.com/uploads/GC_9107_Data_Sheet_V1_2_5897aaab18.pdf
  * + Other Question/Answers around
  * 
  * Distributed as-is; no warranty is given.
  ******************************************************************************/
+
 #include <Arduino.h>
 #include <M5AtomS3.h>
 #include <M5_ENV.h>
@@ -192,6 +195,12 @@ void writePressure()
   M5.lcd.printf("%3.2f mb\n", latestPressure/100.0F);
 }
 
+//
+// M5AtomS3 doesn't have working sleep() command atm
+//
+#define GC9107_SLPIN 0x10
+#define GC9107_SLPOUT 0x11
+
 void setLcdOn()
 {
   lcd_millis = current_millis + 1000*lcd_seconds;
@@ -201,6 +210,11 @@ void setLcdOn()
   
   isLcdOn = true;
 
+  M5.Lcd.startWrite();
+  M5.Lcd.writecommand(GC9107_SLPOUT);
+  M5.Lcd.endWrite();
+  digitalWrite(16, HIGH);
+
   writeSensorsToLcd();
 }
 
@@ -209,6 +223,10 @@ void setLcdOff()
   if(!isLcdOn)
     return;
 
-  M5.Lcd.clear();
+  M5.Lcd.startWrite();
+  M5.Lcd.writecommand(GC9107_SLPIN);
+  M5.Lcd.endWrite();
+  digitalWrite(16, LOW);
+
   isLcdOn = false;
 }
