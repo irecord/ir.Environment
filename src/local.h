@@ -1,11 +1,12 @@
 #ifndef LOCAL_H
-#define LOCAL_h
+#define LOCAL_H
 
-const char* WifiHostName = "Temp - Room1";
-const char* WifiSSID     = "irHere";
-const char* WifiPassword = "IainLauraAndMatthew";
-const char* EmonNode = "Room1";
-const char* EmonUriFormat = string::format("http://localhost/input/post?node=%s&apikey=b215641cf41c8ed618172ec7911f566c&data=", EmonNode);
-const char* EmonDataFormat = "{\"Temperature\":%3.2f,\"Humidity\":%3.2f;\"Pressure\":%3.2f;}";
+const char* EmonNode = "AtomS3";
+const char* EmonApiKey = "abc123";
+const char* EmonUriFormat = "http://emonpi/input/post?node=%s&apikey=%s&data={\"Temperature\":%3.2f,\"Humidity\":%3.2f,\"Pressure\":%3.2f}";
+
+const char* WifiHostName = EmonNode;
+const char* WifiSSID     = "ssid";
+const char* WifiPassword = "password";
 
 #endif

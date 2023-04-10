@@ -22,6 +22,7 @@
 #include <M5AtomS3.h>
 #include <M5_ENV.h>
 #include <WiFi.h>
+#include <HTTPClient.h>
 
 #include "local.h"
 
@@ -35,6 +36,11 @@ unsigned long current_millis;
 unsigned long sensor_millis;
 /// @brief Seconds until next sensor check
 unsigned int sensor_seconds = 3;
+
+/// @brief Millis until next emon post
+unsigned long emon_millis;
+/// @brief Seconds until next emon post
+unsigned int emon_seconds = 30;
 
 /// @brief Millis the screen has been active;
 unsigned long lcd_millis = 0;
@@ -62,6 +68,7 @@ void writePressure();
 void writeSensorsToLcd();
 void setLcdOn();
 void setLcdOff();
+void sendDataToEmon();
 
 void setup() {
   M5.begin(true, true, false, false);
@@ -100,7 +107,7 @@ void loop()
       return;
     }
     
-    latestPressure = qmp6988.calcPressure();
+    latestPressure = qmp6988.calcPressure()/100.0F;
     latestTemperature = sht30.cTemp;
     latestHumidity = sht30.humidity;
 
@@ -111,6 +118,12 @@ void loop()
   wl_status_t wifi_Status = WiFi.status();
   if(wifi_Status != WL_CONNECTED){
       esp_restart();
+  }
+  
+  if(current_millis > emon_millis && latestPressure > 0)
+  {
+    emon_millis = current_millis + emon_seconds*1000;
+    sendDataToEmon();
   }
 }
 
@@ -158,6 +171,28 @@ bool initSensors()
   return false;
 }
 
+void sendDataToEmon()
+{
+  char url[255];
+  sprintf(url, EmonUriFormat, EmonNode, EmonApiKey, latestTemperature, latestHumidity, latestPressure);
+  USBSerial.println(url);
+
+  HTTPClient httpClient;
+  httpClient.setReuse(false);
+  httpClient.begin(url);
+  int httpResponseCode = httpClient.POST("");
+  if (httpResponseCode > 0) {
+    USBSerial.print("HTTP ");
+    USBSerial.println(httpResponseCode);
+  }
+  else {
+    USBSerial.print("Error code: ");
+    USBSerial.println(httpResponseCode);
+    USBSerial.println(":-(");
+  }
+  //httpClient.end();
+}
+
 ///
 /// Write the sensor information to the screen
 ///
@@ -192,7 +227,7 @@ void writePressure()
   M5.lcd.fillRect(0, lineHeight*2, 128, lineHeight, BLUE);
   M5.lcd.setTextColor(BLACK, BLUE);
   M5.lcd.setCursor(4, lineHeight*2+12);
-  M5.lcd.printf("%3.2f mb\n", latestPressure/100.0F);
+  M5.lcd.printf("%3.2f mb\n", latestPressure);
 }
 
 //
